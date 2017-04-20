@@ -1,0 +1,32 @@
+id: /{{APP_ID}}
+args:
+  - "{{ARGS}}"
+cpus: 0.1
+mem: 36.0
+instances: 1
+container:
+  docker:
+    image: "{{REGISTRY}}/{{APP_ID}}:{{VERSION}}"
+    parameters:
+    -
+      key: label
+      value: "APP_NAME={{APP_ID}}"
+    -
+      key: label
+      value: "APP_BUILD={{VERSION}}"
+    -
+      key: label
+      value: "APP_META={{APP_ID}}:{{VERSION}}"
+    portMappings:
+      - containerPort: {{PORT}}
+healthChecks:
+  -
+    path: /health
+    protocol: HTTP
+    portIndex: 0
+    gracePeriodSeconds: 1500
+    intervalSeconds: 5
+    timeoutSeconds: 10
+    maxConsecutiveFailures: 3
+labels:
+  tags: internal,monitor
