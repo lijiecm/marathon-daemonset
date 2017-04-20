@@ -17,6 +17,11 @@
 			"Rev": "221834dcb89c96e4b057ed8bb878bfe569dfacf4"
 		},
 		{
+			"ImportPath": "github.com/kelseyhightower/envconfig",
+			"Comment": "v1.3.0-3-g8bf4bbf",
+			"Rev": "8bf4bbfc795e2c7c8a5ea47b707453ed019e2ad4"
+		},
+		{
 			"ImportPath": "github.com/matttproud/golang_protobuf_extensions/pbutil",
 			"Rev": "d0c3fe89de86839aecf2e0579c40ba3bb336a453"
 		},
@@ -49,10 +54,6 @@
 		{
 			"ImportPath": "golang.org/x/sys/unix",
 			"Rev": "c200b10b5d5e122be351b67af224adc6128af5bf"
-		},
-		{
-			"ImportPath": "gopkg.in/yaml.v2",
-			"Rev": "53feefa2559fb8dfa8d81baad31be332c97d6c77"
 		}
 	]
 }
