@@ -268,16 +268,24 @@ func processApps() {
 				"app-count": len(marathonApps),
 			}).Info("Found daemonset apps")
 
-			agents.getAgents()
-			agents.getStatus()
+			err = agents.getAgents()
+			if err != nil {
+				log.WithField("error", err).Error("There was a problem getting the agents")
+			} else {
+				if agents.getAgentCount() == 0 {
+					log.Error("No agents found - cannot process apps")
+				} else {
+					agents.getStatus()
 
-			for _, app := range marathonApps {
-				processApp(app, agents)
+					for _, app := range marathonApps {
+						processApp(app, agents)
+					}
+
+					log.WithFields(log.Fields{
+						"time-taken": time.Since(start),
+					}).Info("ProcessApps completed")
+				}
 			}
-
-			log.WithFields(log.Fields{
-				"time-taken": time.Since(start),
-			}).Info("ProcessApps completed")
 		}
 
 		// Sleep
@@ -325,9 +333,11 @@ func processApp(app MarathonApp, agents Agents) {
 
 		if agentCount > 0 && serviceInstanceCount != agentCount {
 			log.WithFields(log.Fields{
-				"app-name": app.ID,
-				"found":    serviceInstanceCount,
-				"expected": agentCount,
+				"app-name":   app.ID,
+				"found":      serviceInstanceCount,
+				"expected":   agentCount,
+				"pct-change": fmt.Sprintf("%.f%%", calculatePercentDifference(agentCount, serviceInstanceCount)),
+				"change":     calculateChange(agentCount, serviceInstanceCount),
 			}).Warn("Incorrect instance count")
 
 			err = updateInstanceCount(agentCount, app.ID)
@@ -343,6 +353,20 @@ func processApp(app MarathonApp, agents Agents) {
 		"app-id":     app.ID,
 		"time-taken": time.Since(start),
 	}).Debug("ProcessApp completed")
+}
+
+func calculatePercentDifference(expected int, found int) float64 {
+	if found < expected {
+		return 100 - (float64(found) / float64(expected) * 100)
+	}
+	return 100 - (float64(expected) / float64(found) * 100)
+}
+
+func calculateChange(expected int, found int) string {
+	if found < expected {
+		return fmt.Sprintf("Adding %d instance(s)", expected-found)
+	}
+	return fmt.Sprintf("Removing %d instance(s)", found-expected)
 }
 
 // Get the agent details.
@@ -365,7 +389,7 @@ func (a *Agents) getAgents() error {
 
 		err := json.Unmarshal(agentsBody, &agents)
 		if err != nil {
-			log.WithField("error:", err).Error("Unable to unmarshal the agents json")
+			return fmt.Errorf("Error unmarshalling JSON from mesos: %s", err)
 		}
 
 		log.WithFields(log.Fields{
@@ -375,7 +399,7 @@ func (a *Agents) getAgents() error {
 		return nil
 	}
 
-	return fmt.Errorf("Error reading agents JSON from mesos - non 200 response: %s", err)
+	return fmt.Errorf("Error reading agents JSON from mesos - non 200 response: %d", response.StatusCode)
 }
 
 // Logs details about the agents that have been found.
@@ -384,31 +408,35 @@ func (a *Agents) getStatus() {
 	var agentCount int
 
 	agentCount = a.getAgentCount()
-	if agentCount == 0 {
-		log.Error("No agents found")
-	} else {
+	// if agentCount == 0 {
+	// 	log.Error("No agents found")
+	// } else {
+	if agentCount > 0 {
 		log.WithFields(log.Fields{
 			"agent-count": agentCount,
 		}).Info("Found agents")
-
-		agentCount = a.getPublicAgentCount()
-		if agentCount > 0 {
-			log.WithFields(log.Fields{
-				"agent-count": agentCount,
-			}).Info("Found public agents")
-		} else {
-			log.Warn("No public agents found")
-		}
-
-		agentCount = a.getPrivateAgentCount()
-		if agentCount > 0 {
-			log.WithFields(log.Fields{
-				"agent-count": agentCount,
-			}).Info("Found private agents")
-		} else {
-			log.Warn("No private agents found")
-		}
+	} else {
+		log.Warn("No agents found")
 	}
+
+	agentCount = a.getPublicAgentCount()
+	if agentCount > 0 {
+		log.WithFields(log.Fields{
+			"agent-count": agentCount,
+		}).Info("Found public agents")
+	} else {
+		log.Warn("No public agents found")
+	}
+
+	agentCount = a.getPrivateAgentCount()
+	if agentCount > 0 {
+		log.WithFields(log.Fields{
+			"agent-count": agentCount,
+		}).Info("Found private agents")
+	} else {
+		log.Warn("No private agents found")
+	}
+	// }
 }
 
 // Return the number of agents.
