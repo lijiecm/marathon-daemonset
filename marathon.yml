@@ -1,9 +1,10 @@
 id: /{{APP_ID}}
-args:
-  - "{{ARGS}}"
 cpus: 0.1
 mem: 36.0
 instances: 1
+env:
+  DAEMONSET_MESOSHOST: "{{MESOS_HOST}}"
+  DAEMONSET_MARATHONHOST: "{{MARATHON_HOST}}"
 container:
   docker:
     image: "{{REGISTRY}}/{{APP_ID}}:{{VERSION}}"
