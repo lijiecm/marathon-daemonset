@@ -21,13 +21,16 @@ update-frequency is the time in seconds between process runs.
 # Make sure there are the same number of instances as there are mesos agents.
 "daemonset": "all"
 
-# Make sure there are the same number of instances as there are mesos agents with an attribute pair of tier=private.
+# Make sure there are the same number of instances as there are mesos agents 
+# with an attribute pair of tier=private.
 "daemonset": "tier|private"
 
-# Make sure there are the same number of instances as there are mesos agents with an attribute pair of az=a.
+# Make sure there are the same number of instances as there are mesos agents 
+# with an attribute pair of az=a.
 "daemonset": "az|a"
 
-# Make sure there are the same number of instances as there are mesos agents with an attribute pair of tier=private or tier=public or tier=badgers.
+# Make sure there are the same number of instances as there are mesos agents 
+# with an attribute pair of tier=private or tier=public or tier=badgers.
 "daemonset": "tier|private,tier|public,tier|badgers"
 ```
 
