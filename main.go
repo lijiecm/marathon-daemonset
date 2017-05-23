@@ -98,10 +98,9 @@ type MarathonApps map[string]MarathonApp
 
 // MarathonApp represents an individual app to be processed.
 type MarathonApp struct {
-	AttributeKey   string
-	AttributeValue string
-	ID             string
-	Type           string
+	Attributes string
+	ID         string
+	Type       string
 }
 
 // Get the apps json from Marathon.
@@ -147,6 +146,7 @@ func (m *MarathonApps) Parse(data []byte) error {
 			Labels    map[string]string `json:"labels"`
 		} `json:"apps"`
 	}
+
 	if err := json.Unmarshal(data, &tmp); err != nil {
 		return err
 	}
@@ -166,9 +166,7 @@ func (m *MarathonApps) Parse(data []byte) error {
 				marathonApp.ID = app.ID
 				(*m)[app.ID] = marathonApp
 			} else {
-				attributeParts := strings.Split(val, marathonLabelValueSeparator)
-				marathonApp.AttributeKey = attributeParts[0]
-				marathonApp.AttributeValue = attributeParts[1]
+				marathonApp.Attributes = val
 				marathonApp.Type = marathonLabelAttrName
 				marathonApp.ID = app.ID
 				(*m)[app.ID] = marathonApp
@@ -321,13 +319,12 @@ func processApp(app MarathonApp, agents Agents) {
 				"service-count": serviceInstanceCount,
 			}).Info("Processing daemonset service")
 		} else {
-			agentCount = agents.getAgentCountByAttribute(app.AttributeKey, app.AttributeValue)
+			agentCount = agents.getAgentCountByAttributes(app.Attributes)
 			log.WithFields(log.Fields{
-				"service":         app.ID,
-				"attribute":       app.AttributeKey,
-				"attribute-value": app.AttributeValue,
-				"agent-count":     agentCount,
-				"service-count":   serviceInstanceCount,
+				"service":       app.ID,
+				"attributes":    app.Attributes,
+				"agent-count":   agentCount,
+				"service-count": serviceInstanceCount,
 			}).Info("Processing attribute constrained service")
 		}
 
@@ -444,6 +441,22 @@ func (a *Agents) getAgentCount() int {
 	return len(a.Agents)
 }
 
+// Return the number of agents with the daemonset=<attr>|<attrValue>(,<attr>|<attrValue>) label.
+func (a *Agents) getAgentCountByAttributes(attributes string) int {
+	agentCount := 0
+	attributePairs := strings.Split(attributes, ",")
+	for _, attr := range attributePairs {
+		log.WithField("attr", attr).Info("Processing attribute pair")
+		attributePair := strings.Split(attr, "|")
+		if len(attributePair) == 2 {
+			agentCount += a.getAgentCountByAttribute(attributePair[0], attributePair[1])
+		} else {
+			log.WithField("attr", attr).Error("The attributePair did not split into 2 parts")
+		}
+	}
+	return agentCount
+}
+
 // Return the number of agents with the <attr>=<attrValue> attribute.
 func (a *Agents) getAgentCountByAttribute(attr string, attrValue string) int {
 	slaveCount := 0
@@ -452,6 +465,15 @@ func (a *Agents) getAgentCountByAttribute(attr string, attrValue string) int {
 			slaveCount++
 		}
 	}
+
+	// There were no matching agents.  Most likely the label is incorrect so throw a warning.
+	if slaveCount == 0 {
+		log.WithFields(log.Fields{
+			"attr":  attr,
+			"value": attrValue,
+		}).Warn("Attribute matched no instances")
+	}
+
 	return slaveCount
 }
 
