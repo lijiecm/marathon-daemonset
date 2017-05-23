@@ -5,6 +5,7 @@ instances: 1
 env:
   DAEMONSET_MESOSHOST: "{{MESOS_HOST}}"
   DAEMONSET_MARATHONHOST: "{{MARATHON_HOST}}"
+  DAEMONSET_SERVERPORT: "{{PORT}}"
 container:
   docker:
     image: "{{REGISTRY}}/{{APP_ID}}:{{VERSION}}"
