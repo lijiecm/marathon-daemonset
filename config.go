@@ -18,6 +18,8 @@ type Config struct {
 	UpdateFrequency time.Duration `default:"5m0s"`
 	DryRun          bool          `default:"false"`
 	Debug           bool          `default:"false"`
+	SkipTls         bool          `default:"true"`
+	Authorization   string        `default:""`
 }
 
 // ConfigHost represents a host String.
