@@ -6,8 +6,10 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"crypto/tls"
 	"strings"
 	"time"
+	"io"
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/prometheus/client_golang/prometheus"
@@ -50,12 +52,20 @@ var (
 		Name:      "apps_updated_error_count",
 		Help:      "Number of errors.",
 	})
+
+	client          http.Client
 )
 
 // Register the prometheus metrics.
 func init() {
 	prometheus.MustRegister(appsUpdatedCounter)
 	prometheus.MustRegister(appsUpdatedErrorCounter)
+	client = http.Client{
+		Timeout: defaultHTTPPostTimeout,
+		Transport: &http.Transport{
+			TLSClientConfig: &tls.Config{InsecureSkipVerify: config.SkipTls},
+		},
+	}
 }
 
 // Agents represents the response from a Mesos /master/slaves call.
@@ -68,7 +78,7 @@ type Agents struct {
 		OfferedResources      AgentResource                      `json:"offered_resources"`
 		ReservedResources     AgentResource                      `json:"reserved_resources"`
 		UnreservedResources   AgentResource                      `json:"unreserved_resources"`
-		Attributes            map[string]string                  `json:"attributes"`
+		Attributes            map[string]interface{}             `json:"attributes"`
 		Active                bool                               `json:"active"`
 		Version               string                             `json:"version"`
 		ReservedResourcesFull map[string][]AgentReservedResource `json:"reserved_resources_full"`
@@ -103,6 +113,22 @@ type MarathonApp struct {
 	Type       string
 }
 
+func HttpRequest(method string, url string, body io.Reader) (*http.Response, error) {
+	req, _ := http.NewRequest(method, url, body)
+	if config.Authorization != "" {
+	  req.Header.Set("Authorization", config.Authorization)
+	}
+	return client.Do(req)
+}
+
+func HttpGet(url string) (*http.Response, error) {
+	return HttpRequest("GET", url, nil)
+}
+
+func HttpPut(url string, body *bytes.Buffer) (*http.Response, error) {
+	return HttpRequest("PUT", url, body)
+}
+
 // Get the apps json from Marathon.
 func (m *MarathonApps) Get() ([]byte, error) {
 	start := time.Now()
@@ -112,7 +138,7 @@ func (m *MarathonApps) Get() ([]byte, error) {
 		"url": url,
 	}).Info("Reading app JSON from marathon")
 
-	response, err := http.Get(url)
+	response, err := HttpGet(url)
 	if err != nil {
 		return nil, fmt.Errorf("Error reading app JSON from marathon: %s", err)
 	}
@@ -216,6 +242,7 @@ func main() {
 	if config.DryRun {
 		log.Info("Running in dry-run mode")
 	}
+
 
 	// Start processing the apps in a goroutine before we start the webserver.
 	go processApps()
@@ -374,7 +401,8 @@ func (a *Agents) getAgents() error {
 	log.WithFields(log.Fields{
 		"url": url,
 	}).Debug("Agents URL")
-	response, err := http.Get(url)
+
+	response, err := HttpGet(url)
 	if err != nil {
 		return fmt.Errorf("Error reading agents JSON from mesos: %s", err)
 	}
@@ -510,7 +538,7 @@ func getCurrentInstanceCount(service string) (int, error) {
 	var marathonAppInstanceCount MarathonAppInstanceCount
 	url := fmt.Sprintf("%s%s%s", config.MarathonHost, marathonAppPath, service)
 
-	response, err := http.Get(url)
+	response, err := HttpGet(url)
 	if err != nil {
 		log.Warnf("HTTP GET error: %s", err)
 		return 0, err
@@ -557,14 +585,7 @@ func updateInstanceCount(count int, service string) error {
 		return nil
 	}
 
-	req, err := http.NewRequest("PUT", url, instanceJSONBuffer)
-	req.Header.Set("Content-Type", "application/json")
-
-	client := &http.Client{
-		Timeout: defaultHTTPPostTimeout,
-	}
-
-	response, err := client.Do(req)
+	response, err := HttpPut(url, instanceJSONBuffer)
 	if err != nil {
 		log.WithFields(log.Fields{
 			"error":                err,

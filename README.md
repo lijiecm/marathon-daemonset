@@ -5,12 +5,14 @@ Handles updating Marathon app instances to match the number of Mesos Agents or t
 ## Example env vars:
 
 ```
-DAEMONSET_DRYRUN=true 
-DAEMONSET_MESOSHOST=http://master.mesos:5050 
+DAEMONSET_DRYRUN=true
+DAEMONSET_MESOSHOST=http://master.mesos:5050
 DAEMONSET_MARATHONHOST=http://marathon.mesos:8080
 DAEMONSET_SERVERPORT=1234
 DAEMONSET_DEBUG=true
 DAEMONSET_UPDATEFREQUENCY=1m30s
+DAEMONSET_SKIPTLS=true
+DAEMONSET_AUTHORIZATION="Basic aBcDEfGhIJKlmNOpqR="
 ```
 
 update-frequency is the time in seconds between process runs.
